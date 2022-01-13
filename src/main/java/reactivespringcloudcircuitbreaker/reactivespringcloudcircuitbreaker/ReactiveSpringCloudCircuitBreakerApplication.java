@@ -3,7 +3,6 @@ package reactivespringcloudcircuitbreaker.reactivespringcloudcircuitbreaker;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -15,8 +14,6 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
-
-import java.util.function.Function;
 
 @SpringBootApplication
 public class ReactiveSpringCloudCircuitBreakerApplication {
@@ -40,13 +37,20 @@ class Client {
     private final WebClient client;
     private final ReactiveCircuitBreaker reactiveCircuitBreaker;
 
-    Client(WebClient webClient, ReactiveCircuitBreakerFactory reactiveCircuitBreakerFactory) {
-        this.client = webClient;
+//   explore service hedging
+//    Flux<String> host1=null;
+//    Flux<String> host2=null;
+//    Flux<String> host3=null;
+//      Flux<String> firstNodeResponded=FLux.first(host1,host2,host3);
+//
+    Client(WebClient client, ReactiveCircuitBreakerFactory reactiveCircuitBreakerFactory) {
+        this.client = client;
         this.reactiveCircuitBreaker = reactiveCircuitBreakerFactory.create("greeting");
     }
 
+
     @EventListener(ApplicationReadyEvent.class)
-    public void read() {
+    public void ready() {
         var name = "Spring Developer";
         Mono<String> http = this.client
                 .get()
@@ -54,9 +58,13 @@ class Client {
                 .retrieve()
                 .bodyToMono(GreetingResponse.class)
                 .map(GreetingResponse::getMessage);
+        reactiveCircuitBreaker.run(
+                        http,
+                        throwable -> Mono.just("drenched in error")
+                )
+                .subscribe(gr -> log.info("Mono" + gr));
 
-        this.reactiveCircuitBreaker.run(http, throwable -> Mono.just("Ooops"))
-                .subscribe(greetingResponse -> log.info(" Mono :" + greetingResponse));
+
     }
 
 }
